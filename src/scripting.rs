@@ -89,5 +89,5 @@ fn parse_error_to_js(e: ParseError) -> JsValue {
         line: pos.line().map(|x| x as u32),
         column: pos.position().map(|x| x as u32),
     };
-    JsValue::from_serde(&res).unwrap()
+    serde_wasm_bindgen::to_value(&res).unwrap()
 }
