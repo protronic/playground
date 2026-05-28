@@ -87,6 +87,21 @@
                             >{{ bleConnected ? (bleDeviceName || 'BLE Connected') : 'Connect BLE (NUS)' }}</b-button>
                         </b-tooltip>
                     </p>
+                    <p class="control">
+                        <b-tooltip
+                            position="is-bottom"
+                            :label="bleConnected ? 'Send current script to NUS device' : 'Connect to a BLE device first'"
+                        >
+                            <b-button
+                                type="is-warning"
+                                native-type="button"
+                                icon-left="upload"
+                                :loading="nusSending"
+                                :disabled="!bleConnected || nusSending"
+                                @click="sendScriptToNus"
+                            >Send to NUS</b-button>
+                        </b-tooltip>
+                    </p>
                 </b-field>
                 <b-field style="margin-bottom: 0.75rem;">
                     <p class="control" v-if="!$data._isEmbedded">
@@ -227,6 +242,9 @@
             </tab-item>
             <tab-item label="AST">
                 <ast-view style="overflow: hidden; height: 100%;" ref="astView" :ast-text="astText"></ast-view>
+            </tab-item>
+            <tab-item label="NUS Output" ref="nusOutputTab" class="outputPanel">
+                <textarea ref="nusOutput" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
         </splittable-tabs>
     </div>
@@ -497,6 +515,7 @@ export default {
             bleConnected: NUS.isConnected(),
             bleDeviceName: NUS.deviceName(),
             bleConnecting: false,
+            nusSending: false,
         };
     },
     computed: {
@@ -558,13 +577,26 @@ export default {
                 await NUS.connect();
             } catch (e) {
                 console.error("BLE connect error:", e);
-                alert("BLE connect failed: " + e.message);
+                this.$buefy.toast.open({ message: "BLE connect failed: " + e.message, type: "is-danger", duration: 5000 });
             } finally {
                 this.bleConnecting = false;
             }
         },
         nusDisconnect() {
             NUS.disconnect();
+        },
+        async sendScriptToNus() {
+            if (!NUS.isConnected() || this.nusSending) return;
+            const script = this.getEditor().getValue();
+            this.nusSending = true;
+            try {
+                await NUS.send(script);
+            } catch (e) {
+                console.error("NUS send error:", e);
+                this.$buefy.toast.open({ message: "NUS send failed: " + e.message, type: "is-danger", duration: 5000 });
+            } finally {
+                this.nusSending = false;
+            }
         },
         loadExampleScript(key) {
             const cm = this.getEditor();
@@ -641,10 +673,31 @@ export default {
             this.bleConnected = isConnected;
             this.bleDeviceName = deviceName;
         });
+        // Poll NUS receive buffer and append to the NUS Output tab.
+        this.$_nusOutputInterval = setInterval(() => {
+            const el = this.$refs.nusOutput;
+            if (!el) return;
+            let chunk;
+            while ((chunk = NUS.receive()) !== '') {
+                // Allow 2px tolerance for scroll detection to account for subpixel rendering.
+                const scroll = el.scrollTop >= el.scrollHeight - el.clientHeight - 2;
+                let v = el.value + chunk;
+                if (v.length > 10000) {
+                    v = v.slice(-10000);
+                }
+                el.value = v;
+                if (scroll) {
+                    el.scrollTop = el.scrollHeight - el.clientHeight;
+                }
+            }
+        }, 100);
     },
     beforeDestroy() {
         if (this.$_nusUnsubscribe) {
             this.$_nusUnsubscribe();
+        }
+        if (this.$_nusOutputInterval) {
+            clearInterval(this.$_nusOutputInterval);
         }
     },
     components: { AstView, Editor, SplittableTabs, TabItem },
