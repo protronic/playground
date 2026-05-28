@@ -4,25 +4,78 @@ use std::cell::RefCell;
 use wasm_bindgen::JsValue;
 use web_sys::console;
 
+/// Callbacks that wire the Rhai NUS API to the JavaScript WebBluetooth layer.
+pub struct NusCallbacks {
+    pub connect: Box<dyn Fn()>,
+    pub disconnect: Box<dyn Fn()>,
+    pub send: Box<dyn Fn(String)>,
+    pub receive: Box<dyn Fn() -> String>,
+    pub is_connected: Box<dyn Fn() -> bool>,
+}
+
+fn build_engine(
+    print_callback: impl Fn(&str) + 'static,
+    debug_callback: impl Fn(&str) + 'static,
+    nus: Option<NusCallbacks>,
+) -> rhai::Engine {
+    let mut engine = rhai::Engine::new();
+    engine
+        .disable_symbol("eval")
+        .on_print(move |s| print_callback(s))
+        .on_debug(move |s, src, pos| {
+            debug_callback(&src.map_or_else(
+                || format!("<script>:[{}] {}", pos, s),
+                |src| format!("{}:[{}] {}", src, pos, s),
+            ))
+        });
+
+    if let Some(nus) = nus {
+        let connect = nus.connect;
+        engine.register_fn("nus_connect", move || connect());
+
+        let disconnect = nus.disconnect;
+        engine.register_fn("nus_disconnect", move || disconnect());
+
+        let send = nus.send;
+        engine.register_fn("nus_send", move |s: String| send(s));
+
+        let receive = nus.receive;
+        engine.register_fn("nus_receive", move || -> String { receive() });
+
+        let is_connected = nus.is_connected;
+        engine.register_fn("nus_is_connected", move || -> bool { is_connected() });
+    }
+
+    engine
+}
+
 pub fn run_script(
     script: &str,
     print_callback: impl Fn(&str) + 'static,
     debug_callback: impl Fn(&str) + 'static,
     progress_callback: impl Fn(u64) + 'static,
 ) -> Result<String, String> {
-    let mut engine = {
-        let mut engine = rhai::Engine::new();
-        engine
-            .disable_symbol("eval")
-            .on_print(move |s| print_callback(s))
-            .on_debug(move |s, src, pos| {
-                debug_callback(&src.map_or_else(
-                    || format!("<script>:[{}] {}", pos, s),
-                    |src| format!("{}:[{}] {}", src, pos, s),
-                ))
-            });
-        engine
-    };
+    run_script_impl(script, print_callback, debug_callback, progress_callback, None)
+}
+
+pub fn run_script_with_nus(
+    script: &str,
+    print_callback: impl Fn(&str) + 'static,
+    debug_callback: impl Fn(&str) + 'static,
+    progress_callback: impl Fn(u64) + 'static,
+    nus: NusCallbacks,
+) -> Result<String, String> {
+    run_script_impl(script, print_callback, debug_callback, progress_callback, Some(nus))
+}
+
+fn run_script_impl(
+    script: &str,
+    print_callback: impl Fn(&str) + 'static,
+    debug_callback: impl Fn(&str) + 'static,
+    progress_callback: impl Fn(u64) + 'static,
+    nus: Option<NusCallbacks>,
+) -> Result<String, String> {
+    let mut engine = build_engine(print_callback, debug_callback, nus);
     let script_ast = engine.compile(&script).map_err(|e| e.to_string())?;
 
     let interval = RefCell::new(1000);

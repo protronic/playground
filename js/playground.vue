@@ -72,6 +72,22 @@
                         </b-tooltip>
                     </p>
                 </b-field>
+                <b-field v-if="bleSupported" style="margin-bottom: 0.75rem; align-items: center;">
+                    <p class="control">
+                        <b-tooltip
+                            position="is-bottom"
+                            :label="bleConnected ? 'Disconnect BLE (' + (bleDeviceName || 'device') + ')' : 'Connect to a BLE device using the Nordic UART Service'"
+                        >
+                            <b-button
+                                :type="bleConnected ? 'is-info' : 'is-light'"
+                                native-type="button"
+                                :icon-left="bleConnected ? 'bluetooth-connect' : 'bluetooth'"
+                                :loading="bleConnecting"
+                                @click="bleConnected ? nusDisconnect() : nusConnect()"
+                            >{{ bleConnected ? (bleDeviceName || 'BLE Connected') : 'Connect BLE (NUS)' }}</b-button>
+                        </b-tooltip>
+                    </p>
+                </b-field>
                 <b-field style="margin-bottom: 0.75rem;">
                     <p class="control" v-if="!$data._isEmbedded">
                         <b-dropdown
@@ -218,6 +234,7 @@
 
 <script>
 import { wasm, wasmLoadPromise } from "./wasm_loader.js";
+import * as NUS from "./nus.js";
 
 import AstView from "./components/AstView.vue";
 import Editor from "./components/editor.vue";
@@ -309,7 +326,7 @@ function initEditor(vm) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 try {
-                    let result = wasm.run_script(
+                    let result = wasm.run_script_with_nus(
                         script,
                         s => {
                             appendOutput(`[PRINT] ${s}`);
@@ -317,6 +334,12 @@ function initEditor(vm) {
                         s => {
                             appendOutput(`[DEBUG] ${s}`);
                         },
+                        null, // progress_callback: not used in synchronous mode
+                        () => { NUS.connect(); },
+                        () => { NUS.disconnect(); },
+                        (data) => { NUS.send(data); },
+                        () => NUS.receive(),
+                        () => NUS.isConnected(),
                     );
                     appendOutput(`\nScript returned: "${result}"`);
                 } catch (ex) {
@@ -470,6 +493,10 @@ export default {
             astText: "",
             splitLayout: "auto",
             _isEmbedded: this.isEmbedded,
+            bleSupported: NUS.isSupported(),
+            bleConnected: NUS.isConnected(),
+            bleDeviceName: NUS.deviceName(),
+            bleConnecting: false,
         };
     },
     computed: {
@@ -523,6 +550,21 @@ export default {
         },
         stopScript() {
             Runner.stopScript();
+        },
+        async nusConnect() {
+            if (this.bleConnecting) return;
+            this.bleConnecting = true;
+            try {
+                await NUS.connect();
+            } catch (e) {
+                console.error("BLE connect error:", e);
+                alert("BLE connect failed: " + e.message);
+            } finally {
+                this.bleConnecting = false;
+            }
+        },
+        nusDisconnect() {
+            NUS.disconnect();
         },
         loadExampleScript(key) {
             const cm = this.getEditor();
@@ -594,6 +636,16 @@ export default {
             cm.setValue(this.initialCode);
             cm.focus();
         });
+        // Subscribe to NUS status changes so BLE indicator stays reactive.
+        this.$_nusUnsubscribe = NUS.onStatusChange(({ isConnected, deviceName }) => {
+            this.bleConnected = isConnected;
+            this.bleDeviceName = deviceName;
+        });
+    },
+    beforeDestroy() {
+        if (this.$_nusUnsubscribe) {
+            this.$_nusUnsubscribe();
+        }
     },
     components: { AstView, Editor, SplittableTabs, TabItem },
 };
