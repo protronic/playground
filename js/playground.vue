@@ -574,7 +574,7 @@ export default {
                 await NUS.connect();
             } catch (e) {
                 console.error("BLE connect error:", e);
-                alert("BLE connect failed: " + e.message);
+                this.$buefy.toast.open({ message: "BLE connect failed: " + e.message, type: "is-danger", duration: 5000 });
             } finally {
                 this.bleConnecting = false;
             }
@@ -590,7 +590,7 @@ export default {
                 await NUS.send(script);
             } catch (e) {
                 console.error("NUS send error:", e);
-                alert("NUS send failed: " + e.message);
+                this.$buefy.toast.open({ message: "NUS send failed: " + e.message, type: "is-danger", duration: 5000 });
             } finally {
                 this.nusSending = false;
             }
