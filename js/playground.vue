@@ -243,6 +243,9 @@
             <tab-item label="AST">
                 <ast-view style="overflow: hidden; height: 100%;" ref="astView" :ast-text="astText"></ast-view>
             </tab-item>
+            <tab-item label="NUS Output" ref="nusOutputTab" class="outputPanel">
+                <textarea ref="nusOutput" class="result" readonly autocomplete="off"></textarea>
+            </tab-item>
         </splittable-tabs>
     </div>
 </template>
@@ -670,10 +673,30 @@ export default {
             this.bleConnected = isConnected;
             this.bleDeviceName = deviceName;
         });
+        // Poll NUS receive buffer and append to the NUS Output tab.
+        this.$_nusOutputInterval = setInterval(() => {
+            const el = this.$refs.nusOutput;
+            if (!el) return;
+            let chunk;
+            while ((chunk = NUS.receive()) !== '') {
+                const scroll = el.scrollTop >= el.scrollHeight - el.clientHeight - 2;
+                let v = el.value + chunk;
+                if (v.length > 10000) {
+                    v = v.substr(v.length - 10000);
+                }
+                el.value = v;
+                if (scroll) {
+                    el.scrollTop = el.scrollHeight - el.clientHeight;
+                }
+            }
+        }, 100);
     },
     beforeDestroy() {
         if (this.$_nusUnsubscribe) {
             this.$_nusUnsubscribe();
+        }
+        if (this.$_nusOutputInterval) {
+            clearInterval(this.$_nusOutputInterval);
         }
     },
     components: { AstView, Editor, SplittableTabs, TabItem },
