@@ -28,6 +28,69 @@ pub fn run_script(
     )?)
 }
 
+/// Variant of `run_script` that also registers NUS (Nordic UART Service) Rhai
+/// functions backed by JavaScript WebBluetooth callbacks.
+///
+/// The NUS callbacks are called synchronously from Rhai scripts:
+/// - `nus_connect_callback()` — initiate a BLE scan/connect (async, fire-and-forget)
+/// - `nus_disconnect_callback()` — disconnect (synchronous)
+/// - `nus_send_callback(data: string)` — write to the NUS RX characteristic
+/// - `nus_receive_callback() -> string` — poll the receive buffer; returns `""` when empty
+/// - `nus_is_connected_callback() -> bool` — connection status
+#[wasm_bindgen]
+pub fn run_script_with_nus(
+    script: String,
+    print_callback: js_sys::Function,
+    debug_callback: js_sys::Function,
+    progress_callback: Option<js_sys::Function>,
+    nus_connect_callback: js_sys::Function,
+    nus_disconnect_callback: js_sys::Function,
+    nus_send_callback: js_sys::Function,
+    nus_receive_callback: js_sys::Function,
+    nus_is_connected_callback: js_sys::Function,
+) -> Result<String, JsValue> {
+    let nus = scripting::NusCallbacks {
+        connect: Box::new(move || {
+            let _ = nus_connect_callback.call0(&JsValue::null());
+        }),
+        disconnect: Box::new(move || {
+            let _ = nus_disconnect_callback.call0(&JsValue::null());
+        }),
+        send: Box::new(move |s: String| {
+            let _ = nus_send_callback.call1(&JsValue::null(), &JsValue::from_str(&s));
+        }),
+        receive: Box::new(move || {
+            nus_receive_callback
+                .call0(&JsValue::null())
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        }),
+        is_connected: Box::new(move || {
+            nus_is_connected_callback
+                .call0(&JsValue::null())
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        }),
+    };
+    Ok(scripting::run_script_with_nus(
+        &script,
+        move |s| {
+            let _ = print_callback.call1(&JsValue::null(), &JsValue::from_str(s));
+        },
+        move |s| {
+            let _ = debug_callback.call1(&JsValue::null(), &JsValue::from_str(s));
+        },
+        move |ops| {
+            if let Some(f) = &progress_callback {
+                let _ = f.call1(&JsValue::null(), &JsValue::from_f64(ops as f64));
+            }
+        },
+        nus,
+    )?)
+}
+
 #[wasm_bindgen]
 pub fn compile_script(script: String) -> Result<String, JsValue> {
     Ok(scripting::compile_ast(&script)?)
