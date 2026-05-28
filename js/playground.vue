@@ -679,10 +679,11 @@ export default {
             if (!el) return;
             let chunk;
             while ((chunk = NUS.receive()) !== '') {
+                // Allow 2px tolerance for scroll detection to account for subpixel rendering.
                 const scroll = el.scrollTop >= el.scrollHeight - el.clientHeight - 2;
                 let v = el.value + chunk;
                 if (v.length > 10000) {
-                    v = v.substr(v.length - 10000);
+                    v = v.slice(-10000);
                 }
                 el.value = v;
                 if (scroll) {
