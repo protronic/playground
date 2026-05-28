@@ -87,6 +87,21 @@
                             >{{ bleConnected ? (bleDeviceName || 'BLE Connected') : 'Connect BLE (NUS)' }}</b-button>
                         </b-tooltip>
                     </p>
+                    <p class="control">
+                        <b-tooltip
+                            position="is-bottom"
+                            :label="bleConnected ? 'Send current script to NUS device' : 'Connect to a BLE device first'"
+                        >
+                            <b-button
+                                type="is-warning"
+                                native-type="button"
+                                icon-left="upload"
+                                :loading="nusSending"
+                                :disabled="!bleConnected || nusSending"
+                                @click="sendScriptToNus"
+                            >Send to NUS</b-button>
+                        </b-tooltip>
+                    </p>
                 </b-field>
                 <b-field style="margin-bottom: 0.75rem;">
                     <p class="control" v-if="!$data._isEmbedded">
@@ -497,6 +512,7 @@ export default {
             bleConnected: NUS.isConnected(),
             bleDeviceName: NUS.deviceName(),
             bleConnecting: false,
+            nusSending: false,
         };
     },
     computed: {
@@ -565,6 +581,19 @@ export default {
         },
         nusDisconnect() {
             NUS.disconnect();
+        },
+        async sendScriptToNus() {
+            if (!NUS.isConnected() || this.nusSending) return;
+            const script = this.getEditor().getValue();
+            this.nusSending = true;
+            try {
+                await NUS.send(script);
+            } catch (e) {
+                console.error("NUS send error:", e);
+                alert("NUS send failed: " + e.message);
+            } finally {
+                this.nusSending = false;
+            }
         },
         loadExampleScript(key) {
             const cm = this.getEditor();
