@@ -267,6 +267,12 @@
                 <div class="led-panel">
                     <span class="led-label">LED:</span>
                     <div class="led-indicator" :class="ledOn ? 'led-on' : 'led-off'"></div>
+                    <b-button
+                        size="is-small"
+                        icon-left="delete-sweep"
+                        style="margin-left: 8px;"
+                        @click="clearOutput"
+                    >Clear</b-button>
                 </div>
                 <textarea ref="result" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
@@ -274,6 +280,13 @@
                 <ast-view style="overflow: hidden; height: 100%;" ref="astView" :ast-text="astText"></ast-view>
             </tab-item>
             <tab-item label="NUS Output" ref="nusOutputTab" class="outputPanel">
+                <div class="led-panel">
+                    <b-button
+                        size="is-small"
+                        icon-left="delete-sweep"
+                        @click="clearNusOutput"
+                    >Clear</b-button>
+                </div>
                 <textarea ref="nusOutput" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
         </splittable-tabs>
@@ -656,6 +669,12 @@ export default {
         },
         cmRefresh() {
             this.$nextTick(() => this.getEditor().refresh());
+        },
+        clearOutput() {
+            this.$refs.result.value = "";
+        },
+        clearNusOutput() {
+            this.$refs.nusOutput.value = "";
         },
         activeTabChanged(newTab) {
             if (newTab === 0) {
