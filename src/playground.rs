@@ -83,7 +83,7 @@ impl Playground {
                 engine.on_debug(|_, _, _| {});
                 engine.on_progress(|_| None);
                 engine.register_fn("ts", || -> i64 { 0 });
-                engine.register_fn("led", |_on: bool| -> bool { false });
+                engine.register_fn("led", |on: bool| -> bool { on });
             }
         }
     }

@@ -1,3 +1,5 @@
+// wait() uses a busy-loop on ts() to simulate a hardware delay.
+// This is for demonstration only — it will consume 100% CPU while waiting.
 fn wait(ms) {
     let t = ms * 32768 / 1000;
     let s = ts();
