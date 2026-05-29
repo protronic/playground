@@ -1,6 +1,11 @@
-fn wait(ms){let t=ms*3276;let s=ts();while ts()-s<t{}}
-fn dot(){led(true);wait(200);led(false);wait(200);}
-fn dash(){led(true);wait(600);led(false);wait(200);}
-dot();dot();dot();wait(400);
-dash();dash();dash();wait(400);
-dot();dot();dot();
+fn wait(ms){
+    let t=ms*3276;let s=ts();
+    while ts()-s<t{}
+}
+let s=[[2,1],[2,0],[2,1],[2,0],[2,1],[4,0],
+[6,1],[2,0],[6,1],[2,0],[6,1],[4,0],
+[2,1],[2,0],[2,1],[2,0],[2,1],[10,0]];
+for e in s{
+    led(e[1]==0);
+    wait(e[0]);
+}
