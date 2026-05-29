@@ -110,7 +110,7 @@ function runScript(script, appendOutput, updateOps, updateLed) {
         appendOutput(`Waiting for Web Worker to finish loading...`);
         workerLoader.ensureWorker().then(worker => {
             updateOps(0);
-            appendOutput(`Running script at ${new Date().toISOString()}\n`);
+            appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
             worker.addEventListener("message", runScriptMessageListener = ev => {
                 if (ev.data.req === "runScript/output") {
                     appendOutput(ev.data.output);

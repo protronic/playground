@@ -383,7 +383,7 @@ function initEditor(vm) {
             }
             resultEl.value = v;
         }
-        appendOutput(`Running script at ${new Date().toISOString()}\n`);
+        appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 try {
@@ -640,6 +640,7 @@ export default {
             this.nusSending = true;
             try {
                 await NUS.send(script);
+                this.$refs.nusOutputTab.makeTabActive();
             } catch (e) {
                 console.error("NUS send error:", e);
                 this.$buefy.toast.open({ message: "NUS send failed: " + e.message, type: "is-danger", duration: 5000 });
