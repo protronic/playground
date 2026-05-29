@@ -224,11 +224,16 @@
                                                 >Rhai</a> is an embedded scripting language and evaluation engine for Rust that gives a safe and easy way to add scripting to any application.
                                             </p>
                                             <h1>Hotkeys</h1>
-                                            <p>
-                                                You can run the script by pressing
-                                                <kbd>Ctrl</kbd> +
-                                                <kbd>Enter</kbd> when focused in the editor.
-                                            </p>
+                                            <table>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run script</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>Toggle comment</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Search</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Find &amp; Replace</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Next match</td></tr>
+                                                <tr><td><kbd>Shift</kbd>+<kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Previous match</td></tr>
+                                                <tr><td><kbd>Shift</kbd>+<kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Replace all</td></tr>
+                                                <tr><td><kbd>Esc</kbd></td><td>Close dialog</td></tr>
+                                            </table>
                                         </div>
                                     </section>
                                     <footer class="modal-card-foot">

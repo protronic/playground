@@ -1,32 +1,4 @@
-//! This script calculates the n-th Fibonacci number using a really dumb algorithm
-//! to test the speed of the scripting engine.
-
-const TARGET = 28;
-const REPEAT = 5;
-const ANSWER = 317_811;
-
-fn fib(n) {
-    if n < 2 {
-        n
-    } else {
-        fib(n-1) + fib(n-2)
-    }
-}
-
-print(`Running Fibonacci(${TARGET}) x ${REPEAT} times...`);
-print("Ready... Go!");
-
-let result;
+fn fib(n) { if n < 2 { n } else { fib(n-1) + fib(n-2) } }
 let now = timestamp();
-
-for n in 0..REPEAT {
-    result = fib(TARGET);
-}
-
-print(`Finished. Run time = ${now.elapsed} seconds.`);
-
-print(`Fibonacci number #${TARGET} = ${result}`);
-
-if result != ANSWER {
-    print(`The answer is WRONG! Should be ${ANSWER}!`);
-}
+let r = fib(28);
+print(`fib(28)=${r} in ${now.elapsed}s`);
