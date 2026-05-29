@@ -13,9 +13,8 @@ impl Playground {
         engine.disable_symbol("eval");
         engine.on_print(|_| {});
         engine.on_debug(|_, _, _| {});
-        Self {
-            engine: Engine::new(),
-        }
+        // ts() and led() are registered fresh on each run_script call.
+        Self { engine }
     }
 
     pub fn run_script(
@@ -24,6 +23,7 @@ impl Playground {
         print_callback: impl Fn(&str) + 'static,
         debug_callback: impl Fn(&str) + 'static,
         progress_callback: impl Fn(u64) + 'static,
+        led_callback: impl Fn(bool) + 'static,
     ) -> Result<String, String> {
         struct Defer<'z> {
             mut_self: &'z mut Playground,
@@ -39,6 +39,16 @@ impl Playground {
                 |src| format!("{}:[{}] {}", src, pos, s),
             ))
         });
+
+        let start = Instant::now();
+        engine.register_fn("ts", move || -> i64 {
+            (start.elapsed().as_secs_f64() * 32768.0) as i64
+        });
+        engine.register_fn("led", move |on: bool| -> bool {
+            led_callback(on);
+            on
+        });
+
         let script_ast = engine.compile(&script).map_err(|e| e.to_string())?;
 
         let interval = RefCell::new(1000);
@@ -72,6 +82,8 @@ impl Playground {
                 engine.on_print(|_| {});
                 engine.on_debug(|_, _, _| {});
                 engine.on_progress(|_| None);
+                engine.register_fn("ts", || -> i64 { 0 });
+                engine.register_fn("led", |on: bool| -> bool { on });
             }
         }
     }
@@ -94,6 +106,7 @@ impl PlaygroundExport {
         print_callback: js_sys::Function,
         debug_callback: js_sys::Function,
         progress_callback: Option<js_sys::Function>,
+        led_callback: Option<js_sys::Function>,
     ) -> Result<String, JsValue> {
         Ok(self.0.run_script(
             &script,
@@ -106,6 +119,11 @@ impl PlaygroundExport {
             move |ops| {
                 if let Some(f) = &progress_callback {
                     let _ = f.call1(&JsValue::null(), &JsValue::from_f64(ops as f64));
+                }
+            },
+            move |on| {
+                if let Some(f) = &led_callback {
+                    let _ = f.call1(&JsValue::null(), &JsValue::from_bool(on));
                 }
             },
         )?)

@@ -13,6 +13,32 @@
     display: flex;
     flex-direction: column;
 }
+.led-panel {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    flex-shrink: 0;
+}
+.led-label {
+    font-family: monospace;
+    font-size: 0.9em;
+    margin-right: 6px;
+}
+.led-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    transition: background-color 0.05s, box-shadow 0.05s;
+}
+.led-indicator.led-on {
+    background-color: #00e000;
+    box-shadow: 0 0 8px 2px #00e000;
+}
+.led-indicator.led-off {
+    background-color: #1a3a1a;
+    box-shadow: none;
+}
 .result {
     border: 0;
     margin: 4px 8px;
@@ -198,11 +224,16 @@
                                                 >Rhai</a> is an embedded scripting language and evaluation engine for Rust that gives a safe and easy way to add scripting to any application.
                                             </p>
                                             <h1>Hotkeys</h1>
-                                            <p>
-                                                You can run the script by pressing
-                                                <kbd>Ctrl</kbd> +
-                                                <kbd>Enter</kbd> when focused in the editor.
-                                            </p>
+                                            <table>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run script</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>Toggle comment</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Search</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Find &amp; Replace</td></tr>
+                                                <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Next match</td></tr>
+                                                <tr><td><kbd>Shift</kbd>+<kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Previous match</td></tr>
+                                                <tr><td><kbd>Shift</kbd>+<kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Replace all</td></tr>
+                                                <tr><td><kbd>Esc</kbd></td><td>Close dialog</td></tr>
+                                            </table>
                                         </div>
                                     </section>
                                     <footer class="modal-card-foot">
@@ -238,12 +269,29 @@
                 ></editor>
             </tab-item>
             <tab-item label="Output" ref="outputTab" class="outputPanel">
+                <div class="led-panel">
+                    <span class="led-label">LED:</span>
+                    <div class="led-indicator" :class="ledOn ? 'led-on' : 'led-off'"></div>
+                    <b-button
+                        size="is-small"
+                        icon-left="delete-sweep"
+                        style="margin-left: 8px;"
+                        @click="clearOutput"
+                    >Clear</b-button>
+                </div>
                 <textarea ref="result" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
             <tab-item label="AST">
                 <ast-view style="overflow: hidden; height: 100%;" ref="astView" :ast-text="astText"></ast-view>
             </tab-item>
             <tab-item label="NUS Output" ref="nusOutputTab" class="outputPanel">
+                <div class="led-panel">
+                    <b-button
+                        size="is-small"
+                        icon-left="delete-sweep"
+                        @click="clearNusOutput"
+                    >Clear</b-button>
+                </div>
                 <textarea ref="nusOutput" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
         </splittable-tabs>
@@ -330,7 +378,7 @@ function initEditor(vm) {
         },
     };
 
-    function doRunScriptSync(editor, resultEl) {
+    function doRunScriptSync(editor, resultEl, updateLed) {
         let script = editor.getValue();
         resultEl.value = "";
         function appendOutput(line) {
@@ -340,7 +388,7 @@ function initEditor(vm) {
             }
             resultEl.value = v;
         }
-        appendOutput(`Running script at ${new Date().toISOString()}\n`);
+        appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 try {
@@ -353,6 +401,7 @@ function initEditor(vm) {
                             appendOutput(`[DEBUG] ${s}`);
                         },
                         null, // progress_callback: not used in synchronous mode
+                        on => { if (updateLed) updateLed(on); },
                         () => { NUS.connect(); },
                         () => { NUS.disconnect(); },
                         (data) => { NUS.send(data); },
@@ -372,7 +421,7 @@ function initEditor(vm) {
     }
 
     let runScriptPromise = null;
-    async function doRunScriptAsync(editor, el, updateOps) {
+    async function doRunScriptAsync(editor, el, updateOps, updateLed) {
         if (runScriptPromise) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -419,7 +468,7 @@ function initEditor(vm) {
             }
         }
         try {
-            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps));
+            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps, updateLed));
         } catch (ex) {
             appendOutput(`\nEXCEPTION: "${ex}"`);
         } finally {
@@ -428,7 +477,7 @@ function initEditor(vm) {
     }
 
     let isScriptRunning = false;
-    async function doRunScript(editor, isAsync, resultEl, updateOps) {
+    async function doRunScript(editor, isAsync, resultEl, updateOps, updateLed) {
         if (isScriptRunning) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -437,9 +486,9 @@ function initEditor(vm) {
         }
         isScriptRunning = true;
         if (isAsync) {
-            await doRunScriptAsync(editor, resultEl, updateOps);
+            await doRunScriptAsync(editor, resultEl, updateOps, updateLed);
         } else {
-            await doRunScriptSync(editor, resultEl);
+            await doRunScriptSync(editor, resultEl, updateLed);
         }
         isScriptRunning = false;
     }
@@ -511,6 +560,7 @@ export default {
             astText: "",
             splitLayout: "auto",
             _isEmbedded: this.isEmbedded,
+            ledOn: false,
             bleSupported: NUS.isSupported(),
             bleConnected: NUS.isConnected(),
             bleDeviceName: NUS.deviceName(),
@@ -550,12 +600,16 @@ export default {
                 this.stopDisabled = false;
             }
             this.runningOps = null;
+            this.ledOn = false;
             await this.$_r.doRunScript(
                 this.$refs.editor.getEditor(),
                 this.isRunScriptOnWorker,
                 this.$refs.result,
                 ops => {
                     this.runningOps = ops;
+                },
+                on => {
+                    this.ledOn = on;
                 },
             );
             this.stopDisabled = true;
@@ -591,6 +645,7 @@ export default {
             this.nusSending = true;
             try {
                 await NUS.send(script);
+                this.$refs.nusOutputTab.makeTabActive();
             } catch (e) {
                 console.error("NUS send error:", e);
                 this.$buefy.toast.open({ message: "NUS send failed: " + e.message, type: "is-danger", duration: 5000 });
@@ -620,6 +675,12 @@ export default {
         },
         cmRefresh() {
             this.$nextTick(() => this.getEditor().refresh());
+        },
+        clearOutput() {
+            this.$refs.result.value = "";
+        },
+        clearNusOutput() {
+            this.$refs.nusOutput.value = "";
         },
         activeTabChanged(newTab) {
             if (newTab === 0) {

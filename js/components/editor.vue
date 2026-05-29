@@ -6,6 +6,8 @@
 import CodeMirror from "codemirror";
 import "codemirror/lib/codemirror.css";
 import "codemirror/addon/comment/comment";
+import "codemirror/addon/dialog/dialog";
+import "codemirror/addon/dialog/dialog.css";
 import "codemirror/addon/display/rulers";
 import "codemirror/addon/edit/closebrackets";
 import "codemirror/addon/edit/matchbrackets";
@@ -13,6 +15,8 @@ import "codemirror/addon/fold/brace-fold";
 import "codemirror/addon/fold/foldgutter";
 import "codemirror/addon/fold/foldgutter.css";
 import "codemirror/addon/search/match-highlighter";
+import "codemirror/addon/search/searchcursor";
+import "codemirror/addon/search/search";
 import "codemirror/addon/selection/active-line";
 
 function initEditor(vm) {

@@ -99,9 +99,10 @@ let runScriptPromiseReject = null;
  * @param {string} script
  * @param {AppendOutputCallback} appendOutput
  * @param {(Number) => void} updateOps
+ * @param {(boolean) => void} updateLed
  * @returns {Promise<void>}
  */
-function runScript(script, appendOutput, updateOps) {
+function runScript(script, appendOutput, updateOps, updateLed) {
     if (runScriptMessageListener) {
         return Promise.reject("Another script is running.");
     }
@@ -109,7 +110,7 @@ function runScript(script, appendOutput, updateOps) {
         appendOutput(`Waiting for Web Worker to finish loading...`);
         workerLoader.ensureWorker().then(worker => {
             updateOps(0);
-            appendOutput(`Running script at ${new Date().toISOString()}\n`);
+            appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
             worker.addEventListener("message", runScriptMessageListener = ev => {
                 if (ev.data.req === "runScript/output") {
                     appendOutput(ev.data.output);
@@ -121,6 +122,8 @@ function runScript(script, appendOutput, updateOps) {
                     resolve();
                 } else if (ev.data.req === "runScript/updateOps") {
                     updateOps(ev.data.ops);
+                } else if (ev.data.req === "runScript/led") {
+                    if (updateLed) updateLed(ev.data.on);
                 }
             })
             runScriptPromiseReject = reject;
