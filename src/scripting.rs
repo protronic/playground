@@ -16,6 +16,7 @@ pub struct NusCallbacks {
 fn build_engine(
     print_callback: impl Fn(&str) + 'static,
     debug_callback: impl Fn(&str) + 'static,
+    led_callback: impl Fn(bool) + 'static,
     nus: Option<NusCallbacks>,
 ) -> rhai::Engine {
     let mut engine = rhai::Engine::new();
@@ -28,6 +29,16 @@ fn build_engine(
                 |src| format!("{}:[{}] {}", src, pos, s),
             ))
         });
+
+    let start = Instant::now();
+    engine.register_fn("ts", move || -> i64 {
+        (start.elapsed().as_secs_f64() * 32768.0) as i64
+    });
+
+    engine.register_fn("led", move |on: bool| -> bool {
+        led_callback(on);
+        on
+    });
 
     if let Some(nus) = nus {
         let connect = nus.connect;
@@ -54,8 +65,9 @@ pub fn run_script(
     print_callback: impl Fn(&str) + 'static,
     debug_callback: impl Fn(&str) + 'static,
     progress_callback: impl Fn(u64) + 'static,
+    led_callback: impl Fn(bool) + 'static,
 ) -> Result<String, String> {
-    run_script_impl(script, print_callback, debug_callback, progress_callback, None)
+    run_script_impl(script, print_callback, debug_callback, progress_callback, led_callback, None)
 }
 
 pub fn run_script_with_nus(
@@ -63,9 +75,10 @@ pub fn run_script_with_nus(
     print_callback: impl Fn(&str) + 'static,
     debug_callback: impl Fn(&str) + 'static,
     progress_callback: impl Fn(u64) + 'static,
+    led_callback: impl Fn(bool) + 'static,
     nus: NusCallbacks,
 ) -> Result<String, String> {
-    run_script_impl(script, print_callback, debug_callback, progress_callback, Some(nus))
+    run_script_impl(script, print_callback, debug_callback, progress_callback, led_callback, Some(nus))
 }
 
 fn run_script_impl(
@@ -73,9 +86,10 @@ fn run_script_impl(
     print_callback: impl Fn(&str) + 'static,
     debug_callback: impl Fn(&str) + 'static,
     progress_callback: impl Fn(u64) + 'static,
+    led_callback: impl Fn(bool) + 'static,
     nus: Option<NusCallbacks>,
 ) -> Result<String, String> {
-    let mut engine = build_engine(print_callback, debug_callback, nus);
+    let mut engine = build_engine(print_callback, debug_callback, led_callback, nus);
     let script_ast = engine.compile(&script).map_err(|e| e.to_string())?;
 
     let interval = RefCell::new(1000);

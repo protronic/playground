@@ -99,9 +99,10 @@ let runScriptPromiseReject = null;
  * @param {string} script
  * @param {AppendOutputCallback} appendOutput
  * @param {(Number) => void} updateOps
+ * @param {(boolean) => void} updateLed
  * @returns {Promise<void>}
  */
-function runScript(script, appendOutput, updateOps) {
+function runScript(script, appendOutput, updateOps, updateLed) {
     if (runScriptMessageListener) {
         return Promise.reject("Another script is running.");
     }
@@ -121,6 +122,8 @@ function runScript(script, appendOutput, updateOps) {
                     resolve();
                 } else if (ev.data.req === "runScript/updateOps") {
                     updateOps(ev.data.ops);
+                } else if (ev.data.req === "runScript/led") {
+                    if (updateLed) updateLed(ev.data.on);
                 }
             })
             runScriptPromiseReject = reject;

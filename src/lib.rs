@@ -11,6 +11,7 @@ pub fn run_script(
     print_callback: js_sys::Function,
     debug_callback: js_sys::Function,
     progress_callback: Option<js_sys::Function>,
+    led_callback: Option<js_sys::Function>,
 ) -> Result<String, JsValue> {
     Ok(scripting::run_script(
         &script,
@@ -23,6 +24,11 @@ pub fn run_script(
         move |ops| {
             if let Some(f) = &progress_callback {
                 let _ = f.call1(&JsValue::null(), &JsValue::from_f64(ops as f64));
+            }
+        },
+        move |on| {
+            if let Some(f) = &led_callback {
+                let _ = f.call1(&JsValue::null(), &JsValue::from_bool(on));
             }
         },
     )?)
@@ -43,6 +49,7 @@ pub fn run_script_with_nus(
     print_callback: js_sys::Function,
     debug_callback: js_sys::Function,
     progress_callback: Option<js_sys::Function>,
+    led_callback: Option<js_sys::Function>,
     nus_connect_callback: js_sys::Function,
     nus_disconnect_callback: js_sys::Function,
     nus_send_callback: js_sys::Function,
@@ -85,6 +92,11 @@ pub fn run_script_with_nus(
         move |ops| {
             if let Some(f) = &progress_callback {
                 let _ = f.call1(&JsValue::null(), &JsValue::from_f64(ops as f64));
+            }
+        },
+        move |on| {
+            if let Some(f) = &led_callback {
+                let _ = f.call1(&JsValue::null(), &JsValue::from_bool(on));
             }
         },
         nus,

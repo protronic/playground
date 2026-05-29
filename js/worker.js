@@ -20,6 +20,11 @@ async function runScript(script) {
                 req: "runScript/updateOps",
                 ops,
             });
+        }, on => {
+            self.postMessage({
+                req: "runScript/led",
+                on,
+            });
         });
         output(`\nScript returned: "${result}"`);
     } catch (ex) {

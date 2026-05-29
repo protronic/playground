@@ -13,6 +13,32 @@
     display: flex;
     flex-direction: column;
 }
+.led-panel {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    flex-shrink: 0;
+}
+.led-label {
+    font-family: monospace;
+    font-size: 0.9em;
+    margin-right: 6px;
+}
+.led-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    transition: background-color 0.05s, box-shadow 0.05s;
+}
+.led-indicator.led-on {
+    background-color: #00e000;
+    box-shadow: 0 0 8px 2px #00e000;
+}
+.led-indicator.led-off {
+    background-color: #1a3a1a;
+    box-shadow: none;
+}
 .result {
     border: 0;
     margin: 4px 8px;
@@ -238,6 +264,10 @@
                 ></editor>
             </tab-item>
             <tab-item label="Output" ref="outputTab" class="outputPanel">
+                <div class="led-panel">
+                    <span class="led-label">LED:</span>
+                    <div class="led-indicator" :class="ledOn ? 'led-on' : 'led-off'"></div>
+                </div>
                 <textarea ref="result" class="result" readonly autocomplete="off"></textarea>
             </tab-item>
             <tab-item label="AST">
@@ -330,7 +360,7 @@ function initEditor(vm) {
         },
     };
 
-    function doRunScriptSync(editor, resultEl) {
+    function doRunScriptSync(editor, resultEl, updateLed) {
         let script = editor.getValue();
         resultEl.value = "";
         function appendOutput(line) {
@@ -353,6 +383,7 @@ function initEditor(vm) {
                             appendOutput(`[DEBUG] ${s}`);
                         },
                         null, // progress_callback: not used in synchronous mode
+                        on => { if (updateLed) updateLed(on); },
                         () => { NUS.connect(); },
                         () => { NUS.disconnect(); },
                         (data) => { NUS.send(data); },
@@ -372,7 +403,7 @@ function initEditor(vm) {
     }
 
     let runScriptPromise = null;
-    async function doRunScriptAsync(editor, el, updateOps) {
+    async function doRunScriptAsync(editor, el, updateOps, updateLed) {
         if (runScriptPromise) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -419,7 +450,7 @@ function initEditor(vm) {
             }
         }
         try {
-            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps));
+            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps, updateLed));
         } catch (ex) {
             appendOutput(`\nEXCEPTION: "${ex}"`);
         } finally {
@@ -428,7 +459,7 @@ function initEditor(vm) {
     }
 
     let isScriptRunning = false;
-    async function doRunScript(editor, isAsync, resultEl, updateOps) {
+    async function doRunScript(editor, isAsync, resultEl, updateOps, updateLed) {
         if (isScriptRunning) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -437,9 +468,9 @@ function initEditor(vm) {
         }
         isScriptRunning = true;
         if (isAsync) {
-            await doRunScriptAsync(editor, resultEl, updateOps);
+            await doRunScriptAsync(editor, resultEl, updateOps, updateLed);
         } else {
-            await doRunScriptSync(editor, resultEl);
+            await doRunScriptSync(editor, resultEl, updateLed);
         }
         isScriptRunning = false;
     }
@@ -511,6 +542,7 @@ export default {
             astText: "",
             splitLayout: "auto",
             _isEmbedded: this.isEmbedded,
+            ledOn: false,
             bleSupported: NUS.isSupported(),
             bleConnected: NUS.isConnected(),
             bleDeviceName: NUS.deviceName(),
@@ -550,12 +582,16 @@ export default {
                 this.stopDisabled = false;
             }
             this.runningOps = null;
+            this.ledOn = false;
             await this.$_r.doRunScript(
                 this.$refs.editor.getEditor(),
                 this.isRunScriptOnWorker,
                 this.$refs.result,
                 ops => {
                     this.runningOps = ops;
+                },
+                on => {
+                    this.ledOn = on;
                 },
             );
             this.stopDisabled = true;
