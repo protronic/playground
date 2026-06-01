@@ -726,9 +726,16 @@ export default {
             cm.focus();
         });
         // Subscribe to NUS status changes so BLE indicator stays reactive.
-        this.$_nusUnsubscribe = NUS.onStatusChange(({ isConnected, deviceName }) => {
+        this.$_nusUnsubscribe = NUS.onStatusChange(({ isConnected, deviceName, disconnectReason }) => {
             this.bleConnected = isConnected;
             this.bleDeviceName = deviceName;
+            if (!isConnected && disconnectReason) {
+                this.$buefy.toast.open({
+                    message: `BLE: ${disconnectReason}`,
+                    type: disconnectReason.includes('unexpectedly') ? 'is-danger' : 'is-warning',
+                    duration: 5000,
+                });
+            }
         });
         // Poll NUS receive buffer and append to the NUS Output tab.
         this.$_nusOutputInterval = setInterval(() => {

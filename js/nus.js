@@ -22,13 +22,17 @@ let rxCharacteristic = null;
 /** @type {string[]} */
 let receiveBuffer = [];
 
-/** @type {Array<function({isConnected: boolean, deviceName: string|null}): void>} */
+/** @type {Array<function({isConnected: boolean, deviceName: string|null, disconnectReason: string|null}): void>} */
 let statusListeners = [];
 
-function notifyStatusListeners() {
+/** @type {boolean} */
+let _disconnectingIntentionally = false;
+
+function notifyStatusListeners(disconnectReason) {
     const state = {
         isConnected: isConnected(),
         deviceName: bleDevice ? (bleDevice.name || null) : null,
+        disconnectReason: disconnectReason || null,
     };
     for (const fn of statusListeners) {
         try { fn(state); } catch (_) { /* ignore listener errors */ }
@@ -112,9 +116,12 @@ export async function connect() {
 export function disconnect() {
     if (bleDevice) {
         if (bleDevice.gatt.connected) {
+            _disconnectingIntentionally = true;
             bleDevice.gatt.disconnect();
+            // _onDisconnected will fire via 'gattserverdisconnected' and call _cleanup()
+        } else {
+            _cleanup(null, null);
         }
-        _cleanup();
     }
 }
 
@@ -148,13 +155,20 @@ function _onNotification(event) {
     receiveBuffer.push(value);
 }
 
-function _onDisconnected() {
-    _cleanup();
+function _onDisconnected(event) {
+    const name = (bleDevice && bleDevice.name) || 'Unknown device';
+    const intentional = _disconnectingIntentionally;
+    _disconnectingIntentionally = false;
+    const reason = intentional ? 'disconnected by user' : 'connection lost unexpectedly';
+    _cleanup(reason, name);
 }
 
-function _cleanup() {
+function _cleanup(disconnectReason, disconnectedDeviceName) {
     bleDevice = null;
     rxCharacteristic = null;
     receiveBuffer = [];
-    notifyStatusListeners();
+    if (disconnectReason && disconnectedDeviceName) {
+        receiveBuffer.push(`[BLE] ${disconnectedDeviceName}: ${disconnectReason}\n`);
+    }
+    notifyStatusListeners(disconnectReason);
 }
