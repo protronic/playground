@@ -389,35 +389,31 @@ function initEditor(vm) {
             resultEl.value = v;
         }
         appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                try {
-                    let result = wasm.run_script_with_nus(
-                        script,
-                        s => {
-                            appendOutput(`[PRINT] ${s}`);
-                        },
-                        s => {
-                            appendOutput(`[DEBUG] ${s}`);
-                        },
-                        null, // progress_callback: not used in synchronous mode
-                        on => { if (updateLed) updateLed(on); },
-                        () => { NUS.connect(); },
-                        () => { NUS.disconnect(); },
-                        (data) => { NUS.send(data); },
-                        () => NUS.receive(),
-                        () => NUS.isConnected(),
-                    );
-                    appendOutput(`\nScript returned: "${result}"`);
-                } catch (ex) {
-                    appendOutput(`\nEXCEPTION: "${ex}"`);
-                }
-                appendOutput(`\nFinished at ${new Date().toISOString()}`);
-                // Scroll to bottom
-                resultEl.scrollTop = resultEl.scrollHeight - resultEl.clientHeight;
-                resolve();
-            }, 10);
-        });
+        try {
+            let result = wasm.run_script_with_nus(
+                script,
+                s => {
+                    appendOutput(`[PRINT] ${s}`);
+                },
+                s => {
+                    appendOutput(`[DEBUG] ${s}`);
+                },
+                null, // progress_callback: not used in synchronous mode
+                on => { if (updateLed) updateLed(on); },
+                () => { NUS.connect(); },
+                () => { NUS.disconnect(); },
+                (data) => { NUS.send(data); },
+                () => NUS.receive(),
+                () => NUS.isConnected(),
+            );
+            appendOutput(`\nScript returned: "${result}"`);
+        } catch (ex) {
+            appendOutput(`\nEXCEPTION: "${ex}"`);
+        }
+        appendOutput(`\nFinished at ${new Date().toISOString()}`);
+        // Scroll to bottom
+        resultEl.scrollTop = resultEl.scrollHeight - resultEl.clientHeight;
+        return Promise.resolve();
     }
 
     let runScriptPromise = null;
