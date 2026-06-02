@@ -139,6 +139,14 @@ pub fn alloc_reset_peak() {
     alloc_tracker::reset_peak();
 }
 
+/// Returns the peak shadow-stack (WASM C-stack) usage in bytes since the last
+/// `alloc_reset_peak()` call.  Reflects the deepest call frame reached during
+/// Rhai script evaluation.
+#[wasm_bindgen]
+pub fn alloc_stack_peak_bytes() -> u32 {
+    alloc_tracker::stack_peak_bytes()
+}
+
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {

@@ -3,6 +3,8 @@ use rhai::Engine;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
+use crate::alloc_tracker;
+
 pub struct Playground {
     engine: Engine,
 }
@@ -32,6 +34,8 @@ impl Playground {
         let defer = Defer { mut_self: self };
         let engine = &mut defer.mut_self.engine;
 
+        alloc_tracker::reset_stack_peak();
+
         engine.on_print(move |s| print_callback(s));
         engine.on_debug(move |s, src, pos| {
             debug_callback(&src.map_or_else(
@@ -54,6 +58,7 @@ impl Playground {
         let interval = RefCell::new(1000);
         let last_instant = RefCell::new(Instant::now());
         engine.on_progress(move |ops| {
+            alloc_tracker::sample_stack();
             let interval_value = *interval.borrow();
             if ops % interval_value == 0 {
                 let mut last_instant = last_instant.borrow_mut();

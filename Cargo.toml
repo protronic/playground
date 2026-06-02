@@ -23,7 +23,7 @@ opt-level = 's'
 #default = ["wee_alloc"]
 
 [dependencies]
-rhai = { version = "1.24.0", features = ["only_i64", "internals", "wasm-bindgen"] }
+rhai = { version = "1.25.0", features = ["only_i64", "internals", "wasm-bindgen"] }
 js-sys = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
@@ -59,5 +59,5 @@ js-sys = "0.3.22"
 wasm-bindgen-futures = "0.4.0"
 
 [package.metadata.wasm-pack.profile.release]
-# See https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
-wasm-opt = ["-Oz", "--enable-mutable-globals"]
+# wasm-pack 0.12.x removed support for passing custom args; only true/false is accepted.
+wasm-opt = true

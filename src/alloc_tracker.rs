@@ -85,3 +85,70 @@ pub fn reset_peak() {
         *STATS.peak.get() = live;
     }
 }
+
+// ── Shadow-stack (WASM C-stack) tracking ─────────────────────────────────────
+//
+// The WASM shadow stack grows downward in linear memory.  By taking the address
+// of a local variable (which the compiler must place on the shadow stack) we can
+// observe the current stack-pointer value.  Comparing a baseline taken at the
+// beginning of a script run against the minimum value seen during `on_progress`
+// callbacks gives the peak shadow-stack usage for that run.
+
+struct StackStats {
+    baseline: UnsafeCell<usize>,
+    min_sp: UnsafeCell<usize>,
+}
+
+// SAFETY: same as AllocStats – single-threaded WASM.
+unsafe impl Sync for StackStats {}
+
+static STACK: StackStats = StackStats {
+    baseline: UnsafeCell::new(usize::MAX),
+    min_sp: UnsafeCell::new(usize::MAX),
+};
+
+/// Read the current shadow-stack pointer.
+/// `#[inline(never)]` ensures this always adds exactly one frame, so baseline
+/// and sample measurements are comparable.
+#[inline(never)]
+fn read_sp() -> usize {
+    let x: u8 = 0;
+    &x as *const u8 as usize
+}
+
+/// Record the current SP as the baseline and reset the minimum.
+/// Call immediately before starting a script run.
+pub fn reset_stack_peak() {
+    let sp = read_sp();
+    unsafe {
+        *STACK.baseline.get() = sp;
+        *STACK.min_sp.get() = sp;
+    }
+}
+
+/// Update the minimum SP observed.  Call frequently during script execution
+/// (e.g. inside the Rhai `on_progress` callback) to capture the deepest frame.
+#[inline(never)]
+pub fn sample_stack() {
+    let sp = read_sp();
+    unsafe {
+        let min = &mut *STACK.min_sp.get();
+        if sp < *min {
+            *min = sp;
+        }
+    }
+}
+
+/// Returns peak shadow-stack usage in bytes since the last `reset_stack_peak()`.
+/// Returns 0 if no baseline has been recorded yet.
+pub fn stack_peak_bytes() -> u32 {
+    unsafe {
+        let baseline = *STACK.baseline.get();
+        let min = *STACK.min_sp.get();
+        if baseline == usize::MAX || min == usize::MAX || baseline <= min {
+            0
+        } else {
+            (baseline - min) as u32
+        }
+    }
+}

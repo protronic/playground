@@ -35,6 +35,11 @@ export function getAllocPeakBytes() {
     return _wasmInstance ? wasm.alloc_peak_bytes() : null;
 }
 
+/** Returns peak shadow-stack (WASM C-stack) usage in bytes for the last script run. */
+export function getAllocStackPeakBytes() {
+    return _wasmInstance ? wasm.alloc_stack_peak_bytes() : null;
+}
+
 /** Resets the peak counter. Call immediately before each script run. */
 export function allocResetPeak() {
     if (_wasmInstance) wasm.alloc_reset_peak();

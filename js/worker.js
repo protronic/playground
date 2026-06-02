@@ -1,6 +1,15 @@
-import { wasmImport, getWasmHeapBytes, getAllocLiveBytes, getAllocPeakBytes, allocResetPeak } from "./wasm_loader.js";
+import { wasmImport, getWasmHeapBytes, getAllocLiveBytes, getAllocPeakBytes, getAllocStackPeakBytes, allocResetPeak } from "./wasm_loader.js";
 
 const playgroundPromise = wasmImport.then(wasm => new wasm.Playground);
+
+// Stable baseline: live bytes right after WASM + Playground initialisation.
+// Using a per-run snapshot would deflate the peak on subsequent runs because
+// the Rhai Engine retains cached state between runs, raising live bytes each
+// time without a corresponding rise in the run's own peak allocation.
+let allocBaseline = null;
+playgroundPromise.then(() => {
+    allocBaseline = getAllocLiveBytes() || 0;
+});
 
 async function runScript(script) {
     const playground = await playgroundPromise;
@@ -11,7 +20,7 @@ async function runScript(script) {
         });
     }
     allocResetPeak();
-    const liveBefore = getAllocLiveBytes() || 0;
+    const baseline = allocBaseline !== null ? allocBaseline : (getAllocLiveBytes() || 0);
     const heapBefore = getWasmHeapBytes() || 0;
     try {
         let result = playground.runScript(script, s => {
@@ -36,11 +45,14 @@ async function runScript(script) {
     const heapBytes = getWasmHeapBytes() || 0;
     const heapKB = Math.round(heapBytes / 1024);
     const peakBytes = getAllocPeakBytes() || 0;
-    const peakKB = Math.round((peakBytes - liveBefore) / 1024);
+    const peakKB = Math.round((peakBytes - baseline) / 1024);
+    const stackPeakBytes = getAllocStackPeakBytes() || 0;
+    const stackPeakKB = Math.round(stackPeakBytes / 1024);
     postMessage({
         req: "runScript/end",
         heapKB,
         peakKB,
+        stackPeakKB,
     });
 }
 
