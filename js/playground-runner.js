@@ -100,9 +100,11 @@ let runScriptPromiseReject = null;
  * @param {AppendOutputCallback} appendOutput
  * @param {(Number) => void} updateOps
  * @param {(boolean) => void} updateLed
+ * @param {number} [heapLimitKB]
+ * @param {number} [stackLimitKB]
  * @returns {Promise<void>}
  */
-function runScript(script, appendOutput, updateOps, updateLed) {
+function runScript(script, appendOutput, updateOps, updateLed, heapLimitKB = 0, stackLimitKB = 0) {
     if (runScriptMessageListener) {
         return Promise.reject("Another script is running.");
     }
@@ -115,8 +117,10 @@ function runScript(script, appendOutput, updateOps, updateLed) {
                 if (ev.data.req === "runScript/output") {
                     appendOutput(ev.data.output);
                 } else if (ev.data.req === "runScript/end") {
-                    const peakPart = ev.data.peakKB > 0 ? ` / Rhai peak: ${ev.data.peakKB} KB` : '';
-                    const stackPart = ev.data.stackPeakKB > 0 ? ` / Stack peak: ${ev.data.stackPeakKB} KB` : '';
+                    const heapWarn = heapLimitKB > 0 && ev.data.peakKB > heapLimitKB ? ` ⚠ heap limit ${heapLimitKB} KB exceeded!` : '';
+                    const stackWarn = stackLimitKB > 0 && ev.data.stackPeakKB > stackLimitKB ? ` ⚠ stack limit ${stackLimitKB} KB exceeded!` : '';
+                    const peakPart = ev.data.peakKB > 0 ? ` / Rhai peak: ${ev.data.peakKB} KB${heapWarn}` : '';
+                    const stackPart = ev.data.stackPeakKB > 0 ? ` / Stack peak: ${ev.data.stackPeakKB} KB${stackWarn}` : '';
                     const heapInfo = ev.data.heapKB != null
                         ? ` / WASM heap: ${ev.data.heapKB} KB${peakPart}${stackPart}`
                         : '';

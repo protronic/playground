@@ -1,5 +1,5 @@
 import Vue from "vue";
-import { Button, Dropdown, Field, Icon, Select, Switch, Tooltip } from "buefy";
+import { Button, Dropdown, Field, Icon, Input, Select, Switch, Tooltip } from "buefy";
 
 import playground from "./playground.vue";
 
@@ -7,6 +7,7 @@ Vue.use(Button);
 Vue.use(Dropdown);
 Vue.use(Field);
 Vue.use(Icon);
+Vue.use(Input);
 Vue.use(Select);
 Vue.use(Switch);
 Vue.use(Tooltip);

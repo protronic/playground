@@ -195,6 +195,24 @@
                                         <b>Web Worker</b>
                                     </b-switch>
                                 </div>
+                                <b-field label="Heap limit (KB, 0 = off)">
+                                    <b-input
+                                        v-model.number="heapLimitKB"
+                                        type="number"
+                                        min="0"
+                                        step="64"
+                                        expanded
+                                    ></b-input>
+                                </b-field>
+                                <b-field label="Stack limit (KB, 0 = off)">
+                                    <b-input
+                                        v-model.number="stackLimitKB"
+                                        type="number"
+                                        min="0"
+                                        step="16"
+                                        expanded
+                                    ></b-input>
+                                </b-field>
                             </b-dropdown-item>
                         </b-dropdown>
                     </p>
@@ -378,7 +396,7 @@ function initEditor(vm) {
         },
     };
 
-    function doRunScriptSync(editor, resultEl, updateLed) {
+    function doRunScriptSync(editor, resultEl, updateLed, heapLimitKB, stackLimitKB) {
         let script = editor.getValue();
         resultEl.value = "";
         function appendOutput(line) {
@@ -417,8 +435,10 @@ function initEditor(vm) {
         const heapKB = Math.round(heapBytes / 1024);
         const peakBytes = getAllocPeakBytes() || 0;
         const peakKB = Math.round((peakBytes - liveBefore) / 1024);
-        const peakPart = peakKB > 0 ? ` / Rhai peak: ${peakKB} KB` : '';
-        const heapInfo = ` / WASM heap: ${heapKB} KB${peakPart}`;
+        const heapWarn = heapLimitKB > 0 && heapKB > heapLimitKB ? ` ⚠ heap limit ${heapLimitKB} KB exceeded!` : '';
+        const peakWarn = heapLimitKB > 0 && peakKB > heapLimitKB ? ` ⚠ Rhai peak limit exceeded!` : '';
+        const peakPart = peakKB > 0 ? ` / Rhai peak: ${peakKB} KB${peakWarn}` : '';
+        const heapInfo = ` / WASM heap: ${heapKB} KB${heapWarn}${peakPart}`;
         appendOutput(`\nFinished at ${new Date().toISOString()}${heapInfo}`);
         // Scroll to bottom
         resultEl.scrollTop = resultEl.scrollHeight - resultEl.clientHeight;
@@ -426,7 +446,7 @@ function initEditor(vm) {
     }
 
     let runScriptPromise = null;
-    async function doRunScriptAsync(editor, el, updateOps, updateLed) {
+    async function doRunScriptAsync(editor, el, updateOps, updateLed, heapLimitKB, stackLimitKB) {
         if (runScriptPromise) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -473,7 +493,7 @@ function initEditor(vm) {
             }
         }
         try {
-            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps, updateLed));
+            await (runScriptPromise = Runner.runScript(script, appendOutput, updateOps, updateLed, heapLimitKB, stackLimitKB));
         } catch (ex) {
             appendOutput(`\nEXCEPTION: "${ex}"`);
         } finally {
@@ -482,7 +502,7 @@ function initEditor(vm) {
     }
 
     let isScriptRunning = false;
-    async function doRunScript(editor, isAsync, resultEl, updateOps, updateLed) {
+    async function doRunScript(editor, isAsync, resultEl, updateOps, updateLed, heapLimitKB, stackLimitKB) {
         if (isScriptRunning) {
             console.log(
                 "Blocked run script request as another script is already running."
@@ -491,9 +511,9 @@ function initEditor(vm) {
         }
         isScriptRunning = true;
         if (isAsync) {
-            await doRunScriptAsync(editor, resultEl, updateOps, updateLed);
+            await doRunScriptAsync(editor, resultEl, updateOps, updateLed, heapLimitKB, stackLimitKB);
         } else {
-            await doRunScriptSync(editor, resultEl, updateLed);
+            await doRunScriptSync(editor, resultEl, updateLed, heapLimitKB, stackLimitKB);
         }
         isScriptRunning = false;
     }
@@ -566,6 +586,8 @@ export default {
             splitLayout: "auto",
             _isEmbedded: this.isEmbedded,
             ledOn: false,
+            heapLimitKB: 0,
+            stackLimitKB: 0,
             bleSupported: NUS.isSupported(),
             bleConnected: NUS.isConnected(),
             bleDeviceName: NUS.deviceName(),
@@ -616,6 +638,8 @@ export default {
                 on => {
                     this.ledOn = on;
                 },
+                this.heapLimitKB || 0,
+                this.stackLimitKB || 0,
             );
             this.stopDisabled = true;
             this.isScriptRunning = false;

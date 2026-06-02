@@ -105,7 +105,10 @@ module.exports = {
       crateDirectory: __dirname,
       // We have wasm-pack output for `web` target because we don't want
       // webpack to touch our .wasm file.
-      extraArgs: "--target web",
+      // --no-pack skips step_create_json which fails because wasm-bindgen
+      // writes pkg/package.json with a nested structure that wasm-pack
+      // can't parse as a flat HashMap<String, String>.
+      extraArgs: "--target web --no-pack",
     }),
 
     new VueLoaderPlugin(),
