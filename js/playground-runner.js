@@ -115,7 +115,11 @@ function runScript(script, appendOutput, updateOps, updateLed) {
                 if (ev.data.req === "runScript/output") {
                     appendOutput(ev.data.output);
                 } else if (ev.data.req === "runScript/end") {
-                    appendOutput(`Finished at ${new Date().toISOString()}`);
+                    const peakPart = ev.data.peakKB > 0 ? ` / Rhai peak: ${ev.data.peakKB} KB` : '';
+                    const heapInfo = ev.data.heapKB != null
+                        ? ` / WASM heap: ${ev.data.heapKB} KB${peakPart}`
+                        : '';
+                    appendOutput(`Finished at ${new Date().toISOString()}${heapInfo}`);
                     worker.removeEventListener("message", runScriptMessageListener);
                     runScriptMessageListener = null;
                     runScriptPromiseReject = null;

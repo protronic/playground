@@ -299,7 +299,7 @@
 </template>
 
 <script>
-import { wasm, wasmLoadPromise } from "./wasm_loader.js";
+import { wasm, wasmLoadPromise, getWasmHeapBytes, getAllocLiveBytes, getAllocPeakBytes, allocResetPeak } from "./wasm_loader.js";
 import * as NUS from "./nus.js";
 
 import AstView from "./components/AstView.vue";
@@ -389,6 +389,9 @@ function initEditor(vm) {
             resultEl.value = v;
         }
         appendOutput(`Running script at ${new Date().toISOString()} / Characters: ${script.length}\n`);
+        allocResetPeak();
+        const liveBefore = getAllocLiveBytes() || 0;
+        const heapBefore = getWasmHeapBytes() || 0;
         try {
             let result = wasm.run_script_with_nus(
                 script,
@@ -410,7 +413,13 @@ function initEditor(vm) {
         } catch (ex) {
             appendOutput(`\nEXCEPTION: "${ex}"`);
         }
-        appendOutput(`\nFinished at ${new Date().toISOString()}`);
+        const heapBytes = getWasmHeapBytes() || 0;
+        const heapKB = Math.round(heapBytes / 1024);
+        const peakBytes = getAllocPeakBytes() || 0;
+        const peakKB = Math.round((peakBytes - liveBefore) / 1024);
+        const peakPart = peakKB > 0 ? ` / Rhai peak: ${peakKB} KB` : '';
+        const heapInfo = ` / WASM heap: ${heapKB} KB${peakPart}`;
+        appendOutput(`\nFinished at ${new Date().toISOString()}${heapInfo}`);
         // Scroll to bottom
         resultEl.scrollTop = resultEl.scrollHeight - resultEl.clientHeight;
         return Promise.resolve();

@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 
+mod alloc_tracker;
 mod cm_rhai_mode;
 mod codemirror;
 mod playground;
@@ -112,9 +113,31 @@ pub fn compile_script(script: String) -> Result<String, JsValue> {
 // allocator.
 //
 // If you don't want to use `wee_alloc`, you can safely delete this.
+// NOTE: wee_alloc conflicts with alloc_tracker's #[global_allocator]. Don't enable both.
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+/// Returns currently live (allocated but not freed) bytes tracked by the custom allocator.
+/// Call this before a script run to get the baseline.
+#[wasm_bindgen]
+pub fn alloc_live_bytes() -> u32 {
+    alloc_tracker::live_bytes()
+}
+
+/// Returns the peak live bytes since the last `alloc_reset_peak()` call.
+/// Subtract the pre-run baseline from this to get peak net allocation of the run.
+#[wasm_bindgen]
+pub fn alloc_peak_bytes() -> u32 {
+    alloc_tracker::peak_bytes()
+}
+
+/// Resets the peak counter to current live bytes.
+/// Call immediately before each script run.
+#[wasm_bindgen]
+pub fn alloc_reset_peak() {
+    alloc_tracker::reset_peak();
+}
 
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]

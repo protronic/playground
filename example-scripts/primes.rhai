@@ -1,7 +1,15 @@
-let now=timestamp();
-const N=100000;
-let mask=[];mask.pad(N+1,true);
-mask[0]=false;mask[1]=false;
+let now=ts();
+const N=1000;
+let mask=[];
+for i in 0..=N { mask+=[ i >= 2 ]; }
 let cnt=0;
-for p in 2..=N{if!mask[p]{continue;}cnt+=1;for i in range(2*p,N+1,p){mask[i]=false;}}
-print(`${cnt} primes in ${now.elapsed}s`);
+for p in 2..=N{
+    if!mask[p]{
+        continue;
+    }
+    cnt+=1;
+    for i in range(2*p,N+1,p){
+        mask[i]=false;
+    }
+}
+print(`${cnt} primes in ${(ts()-now)/32768.0}s`);
